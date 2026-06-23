@@ -1,0 +1,17 @@
+{
+  "app_name": "Quattro Message Pool",
+  "version": "1.0.0",
+  "port": 8080,
+  "gemini_api_key": "",
+  "imap": {
+    "enabled": false,
+    "server": "imap.gmail.com",
+    "port": 993,
+    "email": "",
+    "password": "",
+    "folder": "INBOX",
+    "poll_interval_minutes": 5
+  },
+  "db_path": "./data/message_pool.db",
+  "upload_folder": "./uploads"
+}

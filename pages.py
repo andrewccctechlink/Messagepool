@@ -27,6 +27,7 @@ input:focus { border-color:#5C6BC0; outline:none; }
   <input type="text" id="username" placeholder="Username" autofocus>
   <input type="password" id="password" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">
   <button class="btn" onclick="doLogin()">Login</button>
+  <div style="margin-top:20px;font-size:11px;color:#aaa">v<span id="appVersion">—</span></div>
 </div>
 <script>
 async function doLogin() {
@@ -41,6 +42,7 @@ async function doLogin() {
     else { err.textContent = d.error || 'Login failed'; err.style.display = 'block'; }
   } catch(e) { err.textContent = 'Connection error'; err.style.display = 'block'; }
 }
+fetch('/api/version').then(r=>r.json()).then(d=>{document.getElementById('appVersion').textContent=d.version||'—'}).catch(()=>{});
 </script>
 </body>
 </html>'''
@@ -114,7 +116,8 @@ tr:hover td { background:#f8f9fb; }
   <div class="nav-item" onclick="showTab('settings')" id="navSettings" style="display:none">⚙️ Settings</div>
   <div class="nav-item" onclick="showTab('admin')" id="navAdmin" style="display:none">👥 Users</div>
   <div style="flex:1"></div>
-  <div class="nav-item" onclick="doLogout()" style="margin-top:auto;color:rgba(255,255,255,0.6)">🚪 Logout</div>
+  <div style="padding:8px 20px;font-size:10px;color:rgba(255,255,255,0.45);border-top:1px solid rgba(255,255,255,0.1);margin-top:8px">v<span id="appVersion">—</span></div>
+  <div class="nav-item" onclick="doLogout()" style="margin-top:0;color:rgba(255,255,255,0.6)">🚪 Logout</div>
 </div>
 <div class="main">
   <div id="tab-dashboard" class="tab active">
@@ -484,6 +487,7 @@ async function addUser() {
 
 // ── Init ──
 checkAuth(); loadStats(); loadSettings(); setInterval(loadStats, 30000);
+fetch('/api/version').then(r=>r.json()).then(d=>{document.getElementById('appVersion').textContent=d.version||'—'}).catch(()=>{});
 </script>
 </body>
 </html>'''

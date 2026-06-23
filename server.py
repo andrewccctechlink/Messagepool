@@ -1,4 +1,4 @@
-"""Quattro Message Pool — Web Server v1.4 (flat structure, shared history, IMAP scan button)."""
+"""Quattro Message Pool — Web Server v1.5 (Airtable persistence, version tracking)."""
 import json
 import os
 import uuid
@@ -9,8 +9,38 @@ from functools import wraps
 from flask import Flask, request, jsonify, render_template_string, session, redirect
 from werkzeug.utils import secure_filename
 
-from db import (init_db, get_conn, save_analysis, search_items, get_history, get_stats,
-                create_user, verify_user, list_users)
+# ── Database Backend Selection ──────────────────────────────────────────────
+DB_BACKEND = os.environ.get("DB_BACKEND", "auto")
+AIRTABLE_TOKEN = os.environ.get("AIRTABLE_TOKEN", "")
+
+if DB_BACKEND == "airtable" or (DB_BACKEND == "auto" and AIRTABLE_TOKEN):
+    print("📦 DB Backend: AIRTABLE (persistent — survives redeploy)")
+    import db_airtable as db
+    DB_PATH = None
+else:
+    print("📦 DB Backend: SQLite (local — data lost on redeploy)")
+    import db
+    DB_PATH = os.environ.get("DB_PATH", "./data/message_pool.db")
+
+# Make functions available at module level
+init_db = db.init_db
+get_conn = db.get_conn
+save_analysis = db.save_analysis
+search_items = db.search_items
+get_history = db.get_history
+get_stats = db.get_stats
+create_user = db.create_user
+verify_user = db.verify_user
+list_users = db.list_users
+
+# ── Version ─────────────────────────────────────────────────────────────────
+VERSION_PATH = os.path.join(os.path.dirname(__file__), "VERSION")
+try:
+    with open(VERSION_PATH, "r") as f:
+        APP_VERSION = f.read().strip()
+except Exception:
+    APP_VERSION = "unknown"
+
 from file_parser import parse_file
 from gemini_direct import analyze_direct
 from deidentify import deidentify, get_removal_summary
@@ -32,9 +62,9 @@ if os.environ.get("IMAP_EMAIL"):
     CONFIG["imap"]["password"] = os.environ.get("IMAP_PASSWORD", "")
     CONFIG["imap"]["poll_interval_minutes"] = int(os.environ.get("IMAP_INTERVAL", "5"))
 
-DB_PATH = CONFIG.get("db_path", "./data/message_pool.db")
+if DB_PATH:
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 UPLOAD_FOLDER = CONFIG.get("upload_folder", "./uploads")
-os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 app = Flask(__name__)
@@ -42,15 +72,20 @@ app.secret_key = os.environ.get("SECRET_KEY", secrets.token_hex(32))
 app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024
 
 # Init DB + default admin
-init_db(DB_PATH)
-create_user("admin", os.environ.get("ADMIN_PASSWORD", "admin888"), "Admin", is_admin=1, db_path=DB_PATH)
+if DB_PATH:
+    init_db(DB_PATH)
+    create_user("admin", os.environ.get("ADMIN_PASSWORD", "admin888"), "Admin", is_admin=1, db_path=DB_PATH)
+else:
+    init_db()  # Airtable backend doesn't need path
+    create_user("admin", os.environ.get("ADMIN_PASSWORD", "admin888"), "Admin", is_admin=1)
 
 # IMAP Poller
 imap_cfg = CONFIG.get("imap", {})
 imap_cfg["gemini_api_key"] = CONFIG.get("gemini_api_key", "")
-poller = IMAPPoller(imap_cfg, DB_PATH)
+poller = IMAPPoller(imap_cfg, DB_PATH if DB_PATH else "./data/message_pool.db")
 poller.start()
 print(f"  IMAP: {'ON — checking ' + imap_cfg.get('email','') if imap_cfg.get('enabled') else 'OFF'}")
+print(f"  Version: {APP_VERSION} | Backend: {'AIRTABLE' if not DB_PATH else 'SQLITE'}")
 
 
 # ── Auth Decorators ──────────────────────────────────────────────────────────
@@ -123,6 +158,16 @@ def api_me():
     return jsonify({"logged_in": True, "user": session.get("display_name"), "is_admin": session.get("is_admin", False)})
 
 
+@app.route("/api/version")
+def api_version():
+    """Return app version and backend info."""
+    return jsonify({
+        "version": APP_VERSION,
+        "backend": "airtable" if not DB_PATH else "sqlite",
+        "server": "Quattro Message Pool"
+    })
+
+
 # ── Admin API ────────────────────────────────────────────────────────────────
 
 @app.route("/api/admin/users", methods=["GET", "POST"])
@@ -144,10 +189,11 @@ def api_admin_users():
 def api_reset_data():
     """Clear all analyses and items, keep users."""
     conn = get_conn(DB_PATH)
-    conn.execute("DELETE FROM items")
-    conn.execute("DELETE FROM analyses")
-    conn.commit()
-    conn.close()
+    if conn:
+        conn.execute("DELETE FROM items")
+        conn.execute("DELETE FROM analyses")
+        conn.commit()
+        conn.close()
     return jsonify({"ok": True, "message": "All data cleared"})
 
 
@@ -290,7 +336,7 @@ def api_settings():
         CONFIG["imap"].update(data["imap"])
         CONFIG["imap"]["gemini_api_key"] = CONFIG.get("gemini_api_key", "")
         poller.stop()
-        poller = IMAPPoller(CONFIG["imap"], DB_PATH)
+        poller = IMAPPoller(CONFIG["imap"], DB_PATH if DB_PATH else "./data/message_pool.db")
         poller.start()
     with open(CONFIG_PATH, "w") as f:
         json.dump(CONFIG, f, indent=2)
