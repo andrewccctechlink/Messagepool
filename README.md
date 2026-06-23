@@ -143,3 +143,4 @@ A: 是。iPhone 截圖、WhatsApp 截圖、拍攝嘅報價單照片，AI Vision 
 ## 八、技術支援
 
 如遇到問題，請聯絡 Quattro Dynamics 技術支援。
+# force rebuild Tue Jun 23 15:47:03 UTC 2026
