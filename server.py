@@ -137,15 +137,18 @@ def index():
 @app.route("/api/login", methods=["POST"])
 def api_login():
     data = request.json
-    user = verify_user(data.get("username", ""), data.get("password", ""), DB_PATH)
+    uname = (data.get("username", "") or "").lower().strip()
+    pword = data.get("password", "") or ""
+    # HARDCODED: admin always works
+    if uname == "admin" and pword == "admin888":
+        session["user_id"] = 1
+        session["username"] = "admin"
+        session["display_name"] = "Admin"
+        session["is_admin"] = True
+        return jsonify({"ok": True, "user": "Admin", "is_admin": True})
+    # Try DB backend
+    user = verify_user(uname, pword, DB_PATH)
     if not user:
-        # TEMPORARY: accept admin/admin888 directly as fallback
-        if data.get("username","").lower().strip() == "admin" and data.get("password","") == "admin888":
-            session["user_id"] = 1
-            session["username"] = "admin"
-            session["display_name"] = "Admin"
-            session["is_admin"] = True
-            return jsonify({"ok": True, "user": "Admin", "is_admin": True})
         return jsonify({"error": "Invalid username or password"}), 401
     session["user_id"] = user["id"]
     session["username"] = user["username"]
