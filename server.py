@@ -76,8 +76,9 @@ if DB_PATH:
     init_db(DB_PATH)
     create_user("admin", os.environ.get("ADMIN_PASSWORD", "admin888"), "Admin", is_admin=1, db_path=DB_PATH)
 else:
-    init_db()  # Airtable backend doesn't need path
-    create_user("admin", os.environ.get("ADMIN_PASSWORD", "admin888"), "Admin", is_admin=1)
+    init_db()
+    # Admin already exists in Airtable — skip creation on startup to avoid rate limits
+    print("  Admin: using existing Airtable record")
 
 # IMAP Poller
 imap_cfg = CONFIG.get("imap", {})
