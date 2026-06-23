@@ -7,7 +7,7 @@ import secrets
 import requests
 
 # ── Config ──
-AIRTABLE_TOKEN = ***"AIRTABLE_TOKEN", "")
+AIRTABLE_TOKEN = os.environ.get("AIRTABLE_TOKEN", "")
 BASE_ID = os.environ.get("AIRTABLE_BASE_ID", "appmMvxwqWtH4PMer")
 TABLE_ANALYSES = "Message Pool Analyses"
 TABLE_ITEMS = "Message Pool Items"
