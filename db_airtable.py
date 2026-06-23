@@ -145,8 +145,7 @@ def create_user(username, password, display_name=None, is_admin=0, db_path=None)
         "Username": username.lower().strip(),
         "PasswordHash": _hash_pw(password),
         "DisplayName": display_name or username,
-        "IsAdmin": is_admin,
-        "CreatedAt": datetime.now(timezone.utc).isoformat()
+        "IsAdmin": is_admin
     })
     return result is not None
 
@@ -185,16 +184,14 @@ def list_users(db_path=None):
 
 def save_analysis(request_id, source_type, summary, items, raw_text, user_id=None, source_name=None, db_path=None):
     """Save analysis + items to Airtable. Returns analysis record id."""
-    now = datetime.now(timezone.utc).isoformat()
     ana = _at_create(TABLE_ANALYSES, {
         "RequestID": request_id,
         "SourceType": source_type,
         "SourceName": source_name or "Unknown",
         "Summary": summary or "",
-        "RawText": raw_text[:4000] if raw_text else "",  # Airtable cell limit ~100KB, keep safe
+        "RawText": raw_text[:4000] if raw_text else "",
         "ItemCount": len(items),
-        "UserID": user_id or "anonymous",
-        "CreatedAt": now
+        "UserID": user_id or "anonymous"
     })
     if not ana:
         return None
@@ -212,8 +209,7 @@ def save_analysis(request_id, source_type, summary, items, raw_text, user_id=Non
             "MOQ": str(item.get("moq", "")),
             "RawSnippet": (item.get("raw_snippet", "") or "")[:2000],
             "SourceName": source_name or "",
-            "UserID": user_id or "anonymous",
-            "CreatedAt": now
+            "UserID": user_id or "anonymous"
         })
     return request_id
 
