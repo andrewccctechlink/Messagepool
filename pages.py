@@ -162,8 +162,6 @@ tr:hover td { background:#f8f9fb; }
       <input type="file" id="fileInput" multiple hidden accept=".pdf,.xlsx,.xls,.csv,.pptx,.docx,.txt,.eml,.msg,.jpg,.jpeg,.png">
     </div>
     <div class="file-list" id="fileList"></div>
-    <div style="margin:16px 0"><b>Or paste text:</b></div>
-    <textarea id="pasteText" placeholder="Paste WhatsApp chat, quotation email, or any procurement text here..."></textarea>
     <div style="display:flex;gap:12px;align-items:center;margin-top:12px">
       <select id="sourceType" style="width:160px;margin:0">
         <option value="document">Document</option>
@@ -323,23 +321,14 @@ async function doAnalyze() {
   const status = document.getElementById('analyzeStatus');
   const progress = document.getElementById('analyzeProgress');
   const results = document.getElementById('resultsArea');
-  const pasteText = document.getElementById('pasteText').value.trim();
-  if (!selectedFiles.length && !pasteText) { toast('Please drop files or paste text to analyze.'); return; }
+  if (!selectedFiles.length) { toast('Please drop files to analyze.'); return; }
   btn.disabled = true; status.textContent = '🔒 Processing...'; progress.classList.add('show'); results.innerHTML = '';
   try {
-    let data;
-    if (selectedFiles.length) {
-      const form = new FormData();
-      selectedFiles.forEach(f => form.append('files', f));
-      const r = await fetch('/api/upload', { method: 'POST', body: form });
-      data = await r.json();
-      if (!r.ok) { toast(data.error || 'Upload failed'); return; }
-    } else {
-      const r = await fetch('/api/analyze-text', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({text:pasteText, source_type:document.getElementById('sourceType').value}) });
-      data = await r.json();
-      if (!r.ok) { toast(data.error || 'Analysis failed'); return; }
-      data = { results:[{filename:'Pasted text', items:data.items, summary:data.summary, pii_removed:data.pii_removed}], errors:[] };
-    }
+    const form = new FormData();
+    selectedFiles.forEach(f => form.append('files', f));
+    const r = await fetch('/api/upload', { method: 'POST', body: form });
+    data = await r.json();
+    if (!r.ok) { toast(data.error || 'Upload failed'); return; }
     let html = '';
     if (data.errors && data.errors.length) { html += '<div class="card" style="border-left:4px solid #ff9800"><b>⚠️ Errors:</b><br>'+data.errors.join('<br>')+'</div>'; }
     for (const res of (data.results || [])) {
@@ -404,15 +393,27 @@ function createQuotation(){
 // ── History ──
 async function loadHistory() {
   const div = document.getElementById('historyList');
+  const isAdmin = document.getElementById('navAdmin').style.display !== 'none';
   try {
     const r = await fetch('/api/history');
     const d = await r.json();
     if (!d.analyses || !d.analyses.length) { div.innerHTML = '<div class="empty-state">No analyses yet</div>'; return; }
-    let html = '<table><thead><tr><th>Date</th><th>User</th><th>Source</th><th>Type</th><th>Items</th><th>Summary</th></tr></thead><tbody>';
-    for (const a of d.analyses) { html += '<tr><td>'+fmtDate(a.created_at)+'</td><td>'+(a.uploaded_by||'System')+'</td><td>'+(a.source_name||'-')+'</td><td><span class="badge badge-'+(a.source_type==='email'?'email':'doc')+'">'+a.source_type+'</span></td><td>'+a.item_count+'</td><td>'+((a.summary||'').slice(0,80))+'</td></tr>'; }
+    let html = '<table><thead><tr><th>Date</th><th>User</th><th>Source</th><th>Type</th><th>Items</th><th>Summary</th>'+(isAdmin?'<th>Action</th>':'')+'</tr></thead><tbody>';
+    for (const a of d.analyses) { html += '<tr><td>'+fmtDate(a.created_at)+'</td><td>'+(a.uploaded_by||'System')+'</td><td>'+(a.source_name||'-')+'</td><td><span class="badge badge-'+(a.source_type==='email'?'email':'doc')+'">'+a.source_type+'</span></td><td>'+a.item_count+'</td><td>'+((a.summary||'').slice(0,80))+'</td>'+(isAdmin?'<td><button class="btn btn-sm btn-danger" onclick="deleteHistory(\''+a.id+'\',this)">🗑️</button></td>':'')+'</tr>'; }
     html += '</tbody></table>';
     div.innerHTML = html;
   } catch(e) { div.innerHTML = '<div class="empty-state">Error: '+e.message+'</div>'; }
+}
+
+async function deleteHistory(id, btn) {
+  if (!confirm('Delete this analysis record?')) return;
+  btn.disabled = true;
+  try {
+    const r = await fetch('/api/history/delete', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id}) });
+    if (r.ok) { btn.closest('tr').remove(); toast('🗑️ Deleted'); }
+    else { const d = await r.json(); toast('Error: '+(d.error||'Failed')); }
+  } catch(e) { toast('Error: '+e.message); }
+  btn.disabled = false;
 }
 
 // ── Settings ──

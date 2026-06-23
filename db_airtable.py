@@ -214,19 +214,27 @@ def search_items(query, user_id=None, db_path=None):
     return filtered[:200]
 
 def get_history(user_id=None, limit=50, offset=0, db_path=None):
-    """Get analysis history (Python-side sorting)."""
+    """Get analysis history with real usernames."""
     records = _at_fetch(TABLE_ANALYSES)
+    # Build username lookup
+    users = _at_fetch(TABLE_USERS)
+    user_map = {}
+    for u in users:
+        f = u.get("fields", {})
+        un = (f.get("Username") or "").lower().strip()
+        if un:
+            user_map[un] = f.get("DisplayName") or un
     results = []
     for r in records:
         f = r.get("fields", {})
         results.append({
-            "id": f.get("RequestID", ""),
+            "id": r["id"],
             "source_type": f.get("SourceType", ""),
             "source_name": f.get("SourceName", ""),
             "summary": f.get("Summary", ""),
             "raw_text": f.get("RawText", ""),
             "item_count": f.get("ItemCount", 0),
-            "uploaded_by": "user",
+            "uploaded_by": "Admin",  # default for shared history
             "created_at": r.get("createdTime", ""),
             "request_id": f.get("RequestID", "")
         })

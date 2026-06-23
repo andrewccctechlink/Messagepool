@@ -5,6 +5,8 @@ import os
 import uuid
 import secrets
 import threading
+import requests
+from urllib.parse import quote
 from datetime import datetime, timezone
 from functools import wraps
 from flask import Flask, request, jsonify, render_template_string, session, redirect
@@ -139,17 +141,22 @@ def api_login():
     data = request.json or {}
     uname = (data.get("username", "") or "").lower().strip()
     pword = data.get("password", "") or ""
-    # DEBUG
-    if uname != "admin":
-        return jsonify({"error": f"DEBUG: got username='{uname}' pwd_len={len(pword)}"}), 401
-    # HARDCODED
-    if pword == "admin888":
+    # Hardcoded admin fallback
+    if uname == "admin" and pword == "admin888":
         session["user_id"] = 1
         session["username"] = "admin"
         session["display_name"] = "Admin"
         session["is_admin"] = True
         return jsonify({"ok": True, "user": "Admin", "is_admin": True})
-    return jsonify({"error": f"DEBUG: wrong password len={len(pword)}"}), 401
+    # Try Airtable for other users
+    user = verify_user(uname, pword, DB_PATH)
+    if user:
+        session["user_id"] = user["id"]
+        session["username"] = user["username"]
+        session["display_name"] = user["display_name"]
+        session["is_admin"] = bool(user["is_admin"])
+        return jsonify({"ok": True, "user": user["display_name"], "is_admin": session["is_admin"]})
+    return jsonify({"error": "Invalid username or password"}), 401
 
 
 @app.route("/api/logout", methods=["POST"])
@@ -324,6 +331,26 @@ def api_history():
     # Shared: no user_id filter — everyone sees all history
     rows = get_history(user_id=None, limit=100, db_path=DB_PATH)
     return jsonify({"analyses": rows})
+
+
+@app.route("/api/history/delete", methods=["POST"])
+@login_required
+@admin_required
+def api_delete_history():
+    """Admin only: delete a history record by Airtable record ID."""
+    data = request.json
+    record_id = data.get("id")
+    if not record_id:
+        return jsonify({"error": "No record ID provided"}), 400
+    try:
+        requests.delete(
+            f"https://api.airtable.com/v0/{BASE_ID if not DB_PATH else 'appmMvxwqWtH4PMer'}/{quote('Message Pool Analyses', safe='')}/{record_id}",
+            headers={"Authorization": f"Bearer {AIRTABLE_TOKEN if not DB_PATH else os.environ.get('AIRTABLE_TOKEN','')}"},
+            timeout=15
+        )
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/settings", methods=["GET", "POST"])
