@@ -108,10 +108,12 @@ def create_user(username, password, display_name=None, is_admin=0, db_path=None)
 
 def verify_user(username, password, db_path=None):
     """Verify login. Returns user dict or None."""
-    # Hardcoded admin — ALWAYS works regardless of Airtable status
-    if username.lower().strip() == "admin":
-        if password == "admin888":
-            return {"id": "admin", "username": "admin", "display_name": "Admin", "is_admin": True}
+    print(f"VERIFY: username='{username}' password_len={len(password)}")
+    # Hardcoded admin
+    if username.lower().strip() == "admin" and password == "admin888":
+        print("VERIFY: hardcoded admin MATCH")
+        return {"id": "admin", "username": "admin", "display_name": "Admin", "is_admin": True}
+    print(f"VERIFY: no match (uname='{username.lower().strip()}' pw_match={'admin888'==password})")
     
     # Try Airtable
     for attempt in range(3):
