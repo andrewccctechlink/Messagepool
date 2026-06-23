@@ -136,25 +136,20 @@ def index():
 
 @app.route("/api/login", methods=["POST"])
 def api_login():
-    data = request.json
+    data = request.json or {}
     uname = (data.get("username", "") or "").lower().strip()
     pword = data.get("password", "") or ""
-    # HARDCODED: admin always works
-    if uname == "admin" and pword == "admin888":
+    # DEBUG
+    if uname != "admin":
+        return jsonify({"error": f"DEBUG: got username='{uname}' pwd_len={len(pword)}"}), 401
+    # HARDCODED
+    if pword == "admin888":
         session["user_id"] = 1
         session["username"] = "admin"
         session["display_name"] = "Admin"
         session["is_admin"] = True
         return jsonify({"ok": True, "user": "Admin", "is_admin": True})
-    # Try DB backend
-    user = verify_user(uname, pword, DB_PATH)
-    if not user:
-        return jsonify({"error": "Invalid username or password"}), 401
-    session["user_id"] = user["id"]
-    session["username"] = user["username"]
-    session["display_name"] = user["display_name"]
-    session["is_admin"] = bool(user["is_admin"])
-    return jsonify({"ok": True, "user": user["display_name"], "is_admin": session["is_admin"]})
+    return jsonify({"error": f"DEBUG: wrong password len={len(pword)}"}), 401
 
 
 @app.route("/api/logout", methods=["POST"])
