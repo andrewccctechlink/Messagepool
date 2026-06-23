@@ -393,7 +393,7 @@ function createQuotation(){
 // ── History ──
 async function loadHistory() {
   const div = document.getElementById('historyList');
-  const isAdmin = document.getElementById('navAdmin').style.display !== 'none';
+  const isAdmin = document.getElementById('navAdmin') && document.getElementById('navAdmin').style.display !== 'none';
   try {
     const r = await fetch('/api/history');
     const d = await r.json();
