@@ -20,25 +20,40 @@ def _ah():
 # ── Low-level helpers (no filterByFormula, no sort — all Python-side) ──────
 
 def _at_fetch(table, **params):
-    """Fetch ALL records from a table (handles pagination). No Airtable filters."""
+    """Fetch ALL records from a table (handles pagination). Retry on failure."""
+    import time
     all_records = []
     offset = None
+    retries = 0
     while True:
         p = dict(params)
         if offset:
             p["offset"] = offset
-        r = requests.get(
-            f"https://api.airtable.com/v0/{BASE_ID}/{quote(table, safe='')}",
-            headers=_ah(), params=p, timeout=25
-        )
-        if not r.ok:
-            print(f"⚠️ Airtable GET {table}: {r.status_code}")
+        try:
+            r = requests.get(
+                f"https://api.airtable.com/v0/{BASE_ID}/{quote(table, safe='')}",
+                headers=_ah(), params=p, timeout=25
+            )
+            if not r.ok:
+                retries += 1
+                if retries <= 3:
+                    time.sleep(2)
+                    continue
+                print(f"⚠️ Airtable GET {table}: {r.status_code} (retries exhausted)")
+                return []
+            data = r.json()
+            all_records.extend(data.get("records", []))
+            offset = data.get("offset")
+            if not offset:
+                break
+            retries = 0
+        except Exception as e:
+            retries += 1
+            if retries <= 3:
+                time.sleep(2)
+                continue
+            print(f"⚠️ Airtable GET {table}: {e} (retries exhausted)")
             return []
-        data = r.json()
-        all_records.extend(data.get("records", []))
-        offset = data.get("offset")
-        if not offset:
-            break
     return all_records
 
 def _at_create(table, fields):
