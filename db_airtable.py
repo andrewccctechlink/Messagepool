@@ -5,6 +5,7 @@ import os
 import hashlib
 import secrets
 import requests
+from urllib.parse import quote
 
 # ── Config ──
 AIRTABLE_TOKEN = os.environ.get("AIRTABLE_TOKEN", "")
@@ -27,7 +28,7 @@ def _at_fetch(table, **params):
         if offset:
             p["offset"] = offset
         r = requests.get(
-            f"https://api.airtable.com/v0/{BASE_ID}/{table}",
+            f"https://api.airtable.com/v0/{BASE_ID}/{quote(table, safe='')}",
             headers=_ah(), params=p, timeout=25
         )
         if not r.ok:
