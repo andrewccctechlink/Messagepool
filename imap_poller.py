@@ -11,7 +11,14 @@ from datetime import datetime, timezone
 
 from file_parser import parse_file
 from gemini_direct import analyze_direct
-from db import save_analysis
+
+# Use same DB backend as server
+# Use same DB backend as server
+AIRTABLE_TOKEN = (lambda: __import__('os').environ.get('AIRTABLE_TOKEN', ''))()
+if AIRTABLE_TOKEN:
+    from db_airtable import save_analysis
+else:
+    from db import save_analysis
 
 
 class IMAPPoller:
