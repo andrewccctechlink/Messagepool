@@ -498,7 +498,12 @@ async function addUser() {
 }
 
 // ── Init ──
-checkAuth(); loadStats(); loadSettings(); setInterval(loadStats, 30000);
+checkAuth(); loadStats(); loadSettings();
+// Auto-refresh: stats every 30s, history every 30s if tab is active
+setInterval(() => {
+  loadStats();
+  if (document.getElementById('tab-history').classList.contains('active')) loadHistory();
+}, 30000);
 fetch('/api/version').then(r=>r.json()).then(d=>{document.getElementById('appVersion').textContent=d.version||'—'}).catch(()=>{});
 </script>
 </body>
