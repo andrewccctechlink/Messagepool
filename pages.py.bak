@@ -393,29 +393,25 @@ function createQuotation(){
 // ── History ──
 async function loadHistory() {
   const div = document.getElementById('historyList');
+  const isAdmin = document.getElementById('navAdmin') && document.getElementById('navAdmin').style.display !== 'none';
   try {
     const r = await fetch('/api/history');
     const d = await r.json();
     if (!d.analyses || !d.analyses.length) { div.innerHTML = '<div class="empty-state">No analyses yet</div>'; return; }
-    let html = '<table><thead><tr><th>Date</th><th>User</th><th>Source</th><th>Type</th><th>Items</th><th>Summary</th>'+(_mpIsAdmin?'<th>Action</th>':'')+'</tr></thead><tbody>';
-    for (const a of d.analyses) {
-      html += '<tr><td>'+fmtDate(a.created_at)+'</td><td>'+(a.uploaded_by||'System')+'</td><td>'+(a.source_name||'-')+'</td><td><span class="badge badge-'+(a.source_type==='email'?'email':'doc')+'">'+a.source_type+'</span></td><td>'+a.item_count+'</td><td>'+((a.summary||'').slice(0,80))+'</td>';
-      if (_mpIsAdmin) html += '<td><button class="btn btn-sm btn-danger" onclick="deleteHistory(\''+(a.id||'')+'\',\''+(a.request_id||'')+'\',this)">🗑️</button></td>';
-      html += '</tr>';
-    }
+    let html = '<table><thead><tr><th>Date</th><th>User</th><th>Source</th><th>Type</th><th>Items</th><th>Summary</th>'+(isAdmin?'<th>Action</th>':'')+'</tr></thead><tbody>';
+    for (const a of d.analyses) { html += '<tr><td>'+fmtDate(a.created_at)+'</td><td>'+(a.uploaded_by||'System')+'</td><td>'+(a.source_name||'-')+'</td><td><span class="badge badge-'+(a.source_type==='email'?'email':'doc')+'">'+a.source_type+'</span></td><td>'+a.item_count+'</td><td>'+((a.summary||'').slice(0,80))+'</td>'+(isAdmin?'<td><button class="btn btn-sm btn-danger" onclick="deleteHistory(&quot;'+a.id+'&quot;,this)">🗑️</button></td>':'')+'</tr>'; }
     html += '</tbody></table>';
     div.innerHTML = html;
   } catch(e) { div.innerHTML = '<div class="empty-state">Error: '+e.message+'</div>'; }
 }
 
-async function deleteHistory(id, requestId, btn) {
+async function deleteHistory(id, btn) {
   if (!confirm('Delete this analysis record?')) return;
   btn.disabled = true;
   try {
-    const r = await fetch('/api/history/delete', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id, request_id: requestId}) });
-    const d = await r.json();
-    if (r.ok) { btn.closest('tr').remove(); toast('🗑️ Deleted'); loadStats(); }
-    else { toast('Error: '+(d.error||'Failed')); }
+    const r = await fetch('/api/history/delete', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id}) });
+    if (r.ok) { btn.closest('tr').remove(); toast('🗑️ Deleted'); }
+    else { const d = await r.json(); toast('Error: '+(d.error||'Failed')); }
   } catch(e) { toast('Error: '+e.message); }
   btn.disabled = false;
 }
@@ -454,15 +450,12 @@ async function resetData() {
 function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
 
 // ── Auth ──
-// ── Auth ──
-let _mpIsAdmin = false;
 async function checkAuth() {
   try {
     const r = await fetch('/api/me');
     const d = await r.json();
     if (!d.logged_in) { window.location.href = '/login'; return; }
     document.getElementById('currentUser').textContent = d.user;
-    _mpIsAdmin = !!d.is_admin;
     if (d.is_admin) { document.getElementById('navSettings').style.display = ''; document.getElementById('navAdmin').style.display = ''; }
   } catch(e) { window.location.href = '/login'; }
 }

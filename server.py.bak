@@ -170,7 +170,7 @@ def api_logout():
 def api_me():
     if "user_id" not in session:
         return jsonify({"logged_in": False})
-    return jsonify({"logged_in": True, "user": session.get("display_name"), "user_id": session.get("user_id"), "is_admin": session.get("is_admin", False)})
+    return jsonify({"logged_in": True, "user": session.get("display_name"), "is_admin": session.get("is_admin", False)})
 
 
 @app.route("/api/version")
@@ -215,35 +215,13 @@ def api_reset_data():
 @login_required
 @admin_required
 def api_delete_user():
-    """Admin: delete a user (works with both Airtable and SQLite)."""
+    """Admin: delete a user from Airtable by username."""
     data = request.json
     username = (data.get("username") or "").lower().strip()
     if not username or username == "admin":
         return jsonify({"error": "Cannot delete admin or empty username"}), 400
-
-    # ── SQLite backend ──
-    if DB_PATH:
-        try:
-            conn = get_conn(DB_PATH)
-            user_row = conn.execute("SELECT id FROM users WHERE username = ?", (username,)).fetchone()
-            if not user_row:
-                conn.close()
-                return jsonify({"error": "User not found"}), 404
-            uid = user_row["id"]
-            if uid == session.get("user_id"):
-                conn.close()
-                return jsonify({"error": "Cannot delete your own account"}), 400
-            # Preserve their analyses as System
-            conn.execute("UPDATE analyses SET user_id = NULL WHERE user_id = ?", (uid,))
-            conn.execute("DELETE FROM users WHERE id = ?", (uid,))
-            conn.commit()
-            conn.close()
-            return jsonify({"ok": True, "deleted": username})
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    # ── Airtable backend ──
     try:
+        # Fetch user record ID
         r = requests.get(
             f"https://api.airtable.com/v0/{BASE_ID}/{quote('Message Pool Users', safe='')}",
             headers={"Authorization": f"Bearer {AIRTABLE_TOKEN}"},
@@ -390,41 +368,20 @@ def api_history():
 @login_required
 @admin_required
 def api_delete_history():
-    """Admin: delete a history record (works with both Airtable and SQLite)."""
+    """Admin only: delete a history record by Airtable record ID."""
     data = request.json
-    record_id = data.get("id")          # Airtable record ID
-    request_id = data.get("request_id") # SQLite request_id
-
-    # ── SQLite backend ──
-    if DB_PATH and request_id:
-        try:
-            conn = get_conn(DB_PATH)
-            cur = conn.execute("SELECT id FROM analyses WHERE request_id = ?", (request_id,))
-            row = cur.fetchone()
-            if not row:
-                conn.close()
-                return jsonify({"error": "Analysis not found"}), 404
-            conn.execute("DELETE FROM items WHERE analysis_id = ?", (row["id"],))
-            conn.execute("DELETE FROM analyses WHERE id = ?", (row["id"],))
-            conn.commit()
-            conn.close()
-            return jsonify({"ok": True})
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    # ── Airtable backend ──
-    if record_id:
-        try:
-            requests.delete(
-                f"https://api.airtable.com/v0/{BASE_ID}/{quote('Message Pool Analyses', safe='')}/{record_id}",
-                headers={"Authorization": f"Bearer {AIRTABLE_TOKEN}"},
-                timeout=15
-            )
-            return jsonify({"ok": True})
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    return jsonify({"error": "No record_id or request_id provided"}), 400
+    record_id = data.get("id")
+    if not record_id:
+        return jsonify({"error": "No record ID provided"}), 400
+    try:
+        requests.delete(
+            f"https://api.airtable.com/v0/{BASE_ID}/{quote('Message Pool Analyses', safe='')}/{record_id}",
+            headers={"Authorization": f"Bearer {AIRTABLE_TOKEN}"},
+            timeout=15
+        )
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/settings", methods=["GET", "POST"])
