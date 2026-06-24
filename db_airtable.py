@@ -161,7 +161,8 @@ def save_analysis(request_id, source_type, summary, items, raw_text, user_id=Non
         "SourceName": source_name or "Unknown",
         "Summary": summary or "",
         "RawText": (raw_text or "")[:4000],
-        "ItemCount": len(items)
+        "ItemCount": len(items),
+        "UploadedBy": user_id or ""
     })
     if not ana:
         return None
@@ -234,7 +235,7 @@ def get_history(user_id=None, limit=50, offset=0, db_path=None):
             "summary": f.get("Summary", ""),
             "raw_text": f.get("RawText", ""),
             "item_count": f.get("ItemCount", 0),
-            "uploaded_by": "System",  # default for shared history
+            "uploaded_by": user_map.get((f.get("UploadedBy") or "").lower().strip(), f.get("UploadedBy") or "System"),
             "created_at": r.get("createdTime", ""),
             "request_id": f.get("RequestID", "")
         })
