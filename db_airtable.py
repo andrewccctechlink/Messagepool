@@ -155,10 +155,12 @@ def list_users(db_path=None):
 
 def save_analysis(request_id, source_type, summary, items, raw_text, user_id=None, source_name=None, db_path=None):
     """Save analysis + items to Airtable. Returns request_id."""
+    # Embed user_id in SourceName since Airtable PAT lacks schema.create permission
+    tagged_source = f"{source_name or 'Unknown'} [by:{user_id or 'auto'}]"
     ana = _at_create(TABLE_ANALYSES, {
         "RequestID": request_id,
         "SourceType": source_type,
-        "SourceName": source_name or "Unknown",
+        "SourceName": tagged_source,
         "Summary": summary or "",
         "RawText": (raw_text or "")[:4000],
         "ItemCount": len(items),
@@ -216,6 +218,7 @@ def search_items(query, user_id=None, db_path=None):
 
 def get_history(user_id=None, limit=50, offset=0, db_path=None):
     """Get analysis history with real usernames."""
+    import re
     records = _at_fetch(TABLE_ANALYSES)
     # Build username lookup
     users = _at_fetch(TABLE_USERS)
@@ -228,14 +231,23 @@ def get_history(user_id=None, limit=50, offset=0, db_path=None):
     results = []
     for r in records:
         f = r.get("fields", {})
+        src = f.get("SourceName", "")
+        # Try UploadedBy field first (if PAT gained schema permission), then parse [by:...] from SourceName
+        ub = (f.get("UploadedBy") or "").strip()
+        if not ub:
+            m = re.search(r'\[by:(.*?)\]', src)
+            ub = m.group(1) if m else ""
+        uploaded_by = user_map.get(ub.lower().strip(), ub) if ub else "System"
+        # Clean [by:...] tag from display
+        clean_src = re.sub(r'\s*\[by:.*?\]', '', src)
         results.append({
             "id": r["id"],
             "source_type": f.get("SourceType", ""),
-            "source_name": f.get("SourceName", ""),
+            "source_name": clean_src,
             "summary": f.get("Summary", ""),
             "raw_text": f.get("RawText", ""),
             "item_count": f.get("ItemCount", 0),
-            "uploaded_by": user_map.get((f.get("UploadedBy") or "").lower().strip(), f.get("UploadedBy") or "System"),
+            "uploaded_by": uploaded_by,
             "created_at": r.get("createdTime", ""),
             "request_id": f.get("RequestID", "")
         })
