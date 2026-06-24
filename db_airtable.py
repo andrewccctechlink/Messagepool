@@ -163,8 +163,7 @@ def save_analysis(request_id, source_type, summary, items, raw_text, user_id=Non
         "SourceName": tagged_source,
         "Summary": summary or "",
         "RawText": (raw_text or "")[:4000],
-        "ItemCount": len(items),
-        "UploadedBy": user_id or ""
+        "ItemCount": len(items)
     })
     if not ana:
         return None
