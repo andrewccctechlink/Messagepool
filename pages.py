@@ -399,7 +399,7 @@ async function loadHistory() {
     const d = await r.json();
     if (!d.analyses || !d.analyses.length) { div.innerHTML = '<div class="empty-state">No analyses yet</div>'; return; }
     let html = '<table><thead><tr><th>Date</th><th>User</th><th>Source</th><th>Type</th><th>Items</th><th>Summary</th>'+(isAdmin?'<th>Action</th>':'')+'</tr></thead><tbody>';
-    for (const a of d.analyses) { html += '<tr><td>'+fmtDate(a.created_at)+'</td><td>'+(a.uploaded_by||'System')+'</td><td>'+(a.source_name||'-')+'</td><td><span class="badge badge-'+(a.source_type==='email'?'email':'doc')+'">'+a.source_type+'</span></td><td>'+a.item_count+'</td><td>'+((a.summary||'').slice(0,80))+'</td>'+(isAdmin?'<td><button class="btn btn-sm btn-danger" onclick="deleteHistory(\''+a.id+'\',this)">🗑️</button></td>':'')+'</tr>'; }
+    for (const a of d.analyses) { html += '<tr><td>'+fmtDate(a.created_at)+'</td><td>'+(a.uploaded_by||'System')+'</td><td>'+(a.source_name||'-')+'</td><td><span class="badge badge-'+(a.source_type==='email'?'email':'doc')+'">'+a.source_type+'</span></td><td>'+a.item_count+'</td><td>'+((a.summary||'').slice(0,80))+'</td>'+(isAdmin?'<td><button class="btn btn-sm btn-danger" onclick="deleteHistory(&quot;'+a.id+'&quot;,this)">🗑️</button></td>':'')+'</tr>'; }
     html += '</tbody></table>';
     div.innerHTML = html;
   } catch(e) { div.innerHTML = '<div class="empty-state">Error: '+e.message+'</div>'; }
