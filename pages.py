@@ -468,7 +468,7 @@ async function loadUsers() {
     const d = await r.json();
     if (!d.users || !d.users.length) { document.getElementById('userList').innerHTML = 'No users'; return; }
     let html = '<table><thead><tr><th>Username</th><th>Display Name</th><th>Role</th><th>Created</th><th>Action</th></tr></thead><tbody>';
-    for (const u of d.users) { html += '<tr><td>'+u.username+'</td><td>'+(u.display_name||'-')+'</td><td>'+(u.is_admin?'Admin':'User')+'</td><td>'+fmtDateShort(u.created_at)+'</td><td>'+(u.username!=='admin'?'<button class="btn btn-sm btn-danger" onclick="deleteUser(\''+u.username+'\')">🗑️</button>':'')+'</td></tr>'; }
+    for (const u of d.users) { html += '<tr><td>'+u.username+'</td><td>'+(u.display_name||'-')+'</td><td>'+(u.is_admin?'Admin':'User')+'</td><td>'+fmtDateShort(u.created_at)+'</td><td>'+(u.username!=='admin'?'<button class="btn btn-sm btn-danger" onclick="deleteUser(&quot;'+u.username+'&quot;)">🗑️</button>':'')+'</td></tr>'; }
     html += '</tbody></table>';
     document.getElementById('userList').innerHTML = html;
   } catch(e) { document.getElementById('userList').innerHTML = 'Access denied'; }
