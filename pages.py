@@ -467,12 +467,23 @@ async function loadUsers() {
     const r = await fetch('/api/admin/users');
     const d = await r.json();
     if (!d.users || !d.users.length) { document.getElementById('userList').innerHTML = 'No users'; return; }
-    let html = '<table><thead><tr><th>ID</th><th>Username</th><th>Display Name</th><th>Role</th><th>Created</th></tr></thead><tbody>';
-    for (const u of d.users) { html += '<tr><td>'+u.id+'</td><td>'+u.username+'</td><td>'+(u.display_name||'-')+'</td><td>'+(u.is_admin?'Admin':'User')+'</td><td>'+fmtDateShort(u.created_at)+'</td></tr>'; }
+    let html = '<table><thead><tr><th>Username</th><th>Display Name</th><th>Role</th><th>Created</th><th>Action</th></tr></thead><tbody>';
+    for (const u of d.users) { html += '<tr><td>'+u.username+'</td><td>'+(u.display_name||'-')+'</td><td>'+(u.is_admin?'Admin':'User')+'</td><td>'+fmtDateShort(u.created_at)+'</td><td>'+(u.username!=='admin'?'<button class="btn btn-sm btn-danger" onclick="deleteUser(\''+u.username+'\')">🗑️</button>':'')+'</td></tr>'; }
     html += '</tbody></table>';
     document.getElementById('userList').innerHTML = html;
   } catch(e) { document.getElementById('userList').innerHTML = 'Access denied'; }
 }
+
+async function deleteUser(username) {
+  if (!confirm('Delete user "'+username+'"? This cannot be undone.')) return;
+  try {
+    const r = await fetch('/api/admin/users/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username})});
+    const d = await r.json();
+    if (d.ok) { toast('✅ User deleted'); loadUsers(); }
+    else { toast('❌ '+(d.error||'Failed')); }
+  } catch(e) { toast('Error: '+e.message); }
+}
+
 async function addUser() {
   const u = document.getElementById('newUsername').value.trim();
   const p = document.getElementById('newPassword').value;

@@ -15,6 +15,7 @@ from werkzeug.utils import secure_filename
 # ── Database Backend Selection ──────────────────────────────────────────────
 DB_BACKEND = os.environ.get("DB_BACKEND", "auto")
 AIRTABLE_TOKEN = os.environ.get("AIRTABLE_TOKEN", "")
+BASE_ID = os.environ.get("AIRTABLE_BASE_ID", "appmMvxwqWtH4PMer")
 
 if DB_BACKEND == "airtable" or (DB_BACKEND == "auto" and AIRTABLE_TOKEN):
     print("📦 DB Backend: AIRTABLE (persistent — survives redeploy)")
@@ -210,6 +211,36 @@ def api_reset_data():
         conn.close()
     return jsonify({"ok": True, "message": "All data cleared"})
 
+@app.route("/api/admin/users/delete", methods=["POST"])
+@login_required
+@admin_required
+def api_delete_user():
+    """Admin: delete a user from Airtable by username."""
+    data = request.json
+    username = (data.get("username") or "").lower().strip()
+    if not username or username == "admin":
+        return jsonify({"error": "Cannot delete admin or empty username"}), 400
+    try:
+        # Fetch user record ID
+        r = requests.get(
+            f"https://api.airtable.com/v0/{BASE_ID}/{quote('Message Pool Users', safe='')}",
+            headers={"Authorization": f"Bearer {AIRTABLE_TOKEN}"},
+            params={"filterByFormula": f"LOWER({{Username}})='{username}'"},
+            timeout=15
+        )
+        records = r.json().get("records", [])
+        if not records:
+            return jsonify({"error": "User not found"}), 404
+        for rec in records:
+            requests.delete(
+                f"https://api.airtable.com/v0/{BASE_ID}/{quote('Message Pool Users', safe='')}/{rec['id']}",
+                headers={"Authorization": f"Bearer {AIRTABLE_TOKEN}"},
+                timeout=15
+            )
+        return jsonify({"ok": True, "deleted": username})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route("/api/imap-status")
 @login_required
@@ -344,8 +375,8 @@ def api_delete_history():
         return jsonify({"error": "No record ID provided"}), 400
     try:
         requests.delete(
-            f"https://api.airtable.com/v0/{BASE_ID if not DB_PATH else 'appmMvxwqWtH4PMer'}/{quote('Message Pool Analyses', safe='')}/{record_id}",
-            headers={"Authorization": f"Bearer {AIRTABLE_TOKEN if not DB_PATH else os.environ.get('AIRTABLE_TOKEN','')}"},
+            f"https://api.airtable.com/v0/{BASE_ID}/{quote('Message Pool Analyses', safe='')}/{record_id}",
+            headers={"Authorization": f"Bearer {AIRTABLE_TOKEN}"},
             timeout=15
         )
         return jsonify({"ok": True})

@@ -234,7 +234,7 @@ def get_history(user_id=None, limit=50, offset=0, db_path=None):
             "summary": f.get("Summary", ""),
             "raw_text": f.get("RawText", ""),
             "item_count": f.get("ItemCount", 0),
-            "uploaded_by": "Admin",  # default for shared history
+            "uploaded_by": "System",  # default for shared history
             "created_at": r.get("createdTime", ""),
             "request_id": f.get("RequestID", "")
         })
