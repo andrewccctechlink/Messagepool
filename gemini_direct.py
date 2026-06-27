@@ -84,7 +84,7 @@ def analyze_direct(api_key: str, text: str, source_type: str = "document") -> di
 
     response = httpx.post(
         GEMINI_API_URL,
-        params={"key": api_key},
+        headers={"x-goog-api-key": api_key},
         json=payload,
         timeout=60.0,
     )

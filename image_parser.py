@@ -52,7 +52,7 @@ def parse_image(filepath: str, api_key: str = None) -> str:
 
     response = httpx.post(
         GEMINI_API_URL,
-        params={"key": api_key},
+        headers={"x-goog-api-key": api_key},
         json=payload,
         timeout=60.0,
     )
